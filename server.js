@@ -5,8 +5,8 @@ const BOT_TOKEN = "8109346917:AAGfceP0wwFrRKxz17WYf2CKdipyB_JIZu8";
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
 // Target group chat IDs
-const GROUP_1_IDS = [-1002367915435, -1001111111111, -1002222222222]; // Add more group IDs for Group 1
-const GROUP_2_IDS = [-1002406219010, -1003333333333, -1004444444444]; // Add more group IDs for Group 2
+const GROUP_1_IDS = [-1002367915435]; // Add more group IDs for Group 1
+const GROUP_2_IDS = [-1002406219010]; // Add more group IDs for Group 2
 
 // Excluded group chat IDs
 const EXCLUDED_GROUPS = [...GROUP_1_IDS, ...GROUP_2_IDS];
