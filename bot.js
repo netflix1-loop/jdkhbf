@@ -16,7 +16,7 @@ const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 // Function to send a welcome message
 async function sendWelcomeMessage(chatId, userName, groupName) {
     try {
-        const welcomeMessage = `Hi <b>${userName}</b> 👋\nWelcome to <b>${groupName}</b>!\n\n<b>Pics pettu kottukoni full gaa enjoy chedham 🥵👅💋</b>`;
+        const welcomeMessage = `Hi <b>${userName}</b> 👋\nWelcome to <b>${groupName}</b>!\n\n<b>Pics pettandi full ga kottukoni full gaa enjoy chedham 🥵👅💋</b>`;
         await bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'HTML' });
     } catch (error) {
         console.error('Error sending welcome message:', error.message);
