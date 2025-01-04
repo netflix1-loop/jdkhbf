@@ -1,9 +1,31 @@
+const TelegramBot = require('node-telegram-bot-api');
+
+// Your bot token
+const BOT_TOKEN = '8109346917:AAHiKqqPgBJxQJpmGYPQRewE771yGkhsxNE';
+
 // Target group chat IDs
-const GROUP_1_IDS = [-1002367915435]; // Add more group IDs here
-const GROUP_2_IDS = [-1002406219010]; // Add more group IDs here
+const GROUP_1_IDS = [-1002367915435, -1001111111111, -1002222222222]; // Add more group IDs for Group 1
+const GROUP_2_IDS = [-1002406219010, -1003333333333, -1004444444444]; // Add more group IDs for Group 2
 
 // Excluded group chat IDs
 const EXCLUDED_GROUPS = [...GROUP_1_IDS, ...GROUP_2_IDS];
+
+// Create a new bot instance
+const bot = new TelegramBot(BOT_TOKEN, { polling: true });
+
+// Function to get or create a permanent group invite link
+async function getPermanentGroupInviteLink(chatId) {
+    try {
+        const inviteLink = await bot.createChatInviteLink(chatId, {
+            expire_date: 0, // Permanent link
+            member_limit: 0, // No member limit
+        });
+        return inviteLink.invite_link;
+    } catch (error) {
+        console.error('Error creating invite link:', error.message);
+        return null;
+    }
+}
 
 // Function to send messages/media to a list of target groups
 async function sendToGroups(groupIds, sendFunction, ...args) {
@@ -16,6 +38,7 @@ async function sendToGroups(groupIds, sendFunction, ...args) {
     }
 }
 
+// Event handler for incoming messages
 bot.on('message', async (msg) => {
     const senderId = msg.from.id;
     const senderName = msg.from.first_name || msg.from.username || 'Unknown';
