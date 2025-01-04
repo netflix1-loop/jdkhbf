@@ -8,5 +8,10 @@
   },
   "dependencies": {
     "node-telegram-bot-api": "^0.56.0"
-  }
+  },
+  "engines": {
+    "node": ">=14.x"
+  },
+  "author": "Your Name",
+  "license": "MIT"
 }
