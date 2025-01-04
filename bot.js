@@ -1,7 +1,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 
-// Your bot token
-const BOT_TOKEN = '8109346917:AAHiKqqPgBJxQJpmGYPQRewE771yGkhsxNE';
+// Your bot token (can be stored as an environment variable for security)
+const BOT_TOKEN = process.env.BOT_TOKEN || '8109346917:AAHiKqqPgBJxQJpmGYPQRewE771yGkhsxNE';
 
 // Target group chat IDs
 const GROUP_1_IDS = [-1002367915435, -1001111111111, -1002222222222]; // Add more group IDs for Group 1
