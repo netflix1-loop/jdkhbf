@@ -1,7 +1,8 @@
-const TelegramBot = require('node-telegram-bot-api');
+const https = require("https");
 
-// Your bot token (can be stored as an environment variable for security)
-const BOT_TOKEN = process.env.BOT_TOKEN || '8109346917:AAHiKqqPgBJxQJpmGYPQRewE771yGkhsxNE';
+// Your bot token
+const BOT_TOKEN = "8109346917:AAGfceP0wwFrRKxz17WYf2CKdipyB_JIZu8";
+const TELEGRAM_API_URL = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
 // Target group chat IDs
 const GROUP_1_IDS = [-1002367915435, -1001111111111, -1002222222222]; // Add more group IDs for Group 1
@@ -10,41 +11,64 @@ const GROUP_2_IDS = [-1002406219010, -1003333333333, -1004444444444]; // Add mor
 // Excluded group chat IDs
 const EXCLUDED_GROUPS = [...GROUP_1_IDS, ...GROUP_2_IDS];
 
-// Create a new bot instance
-const bot = new TelegramBot(BOT_TOKEN, { polling: true });
+// Helper function to send an HTTP request to Telegram API
+function callTelegramApi(method, data = {}) {
+    return new Promise((resolve, reject) => {
+        const payload = JSON.stringify(data);
+        const options = {
+            hostname: "api.telegram.org",
+            path: `/bot${BOT_TOKEN}/${method}`,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Content-Length": payload.length,
+            },
+        };
+
+        const req = https.request(options, (res) => {
+            let response = "";
+            res.on("data", (chunk) => (response += chunk));
+            res.on("end", () => resolve(JSON.parse(response)));
+        });
+
+        req.on("error", (e) => reject(e));
+        req.write(payload);
+        req.end();
+    });
+}
 
 // Function to get or create a permanent group invite link
 async function getPermanentGroupInviteLink(chatId) {
     try {
-        const inviteLink = await bot.createChatInviteLink(chatId, {
+        const response = await callTelegramApi("createChatInviteLink", {
+            chat_id: chatId,
             expire_date: 0, // Permanent link
             member_limit: 0, // No member limit
         });
-        return inviteLink.invite_link;
+        return response.result.invite_link;
     } catch (error) {
-        console.error('Error creating invite link:', error.message);
+        console.error("Error creating invite link:", error.message);
         return null;
     }
 }
 
 // Function to send messages/media to a list of target groups
-async function sendToGroups(groupIds, sendFunction, ...args) {
+async function sendToGroups(groupIds, method, data) {
     for (const groupId of groupIds) {
         try {
-            await sendFunction(groupId, ...args);
+            await callTelegramApi(method, { ...data, chat_id: groupId });
         } catch (error) {
             console.error(`Error sending to group ${groupId}:`, error.message);
         }
     }
 }
 
-// Event handler for incoming messages
-bot.on('message', async (msg) => {
+// Function to process incoming updates
+async function processMessage(msg) {
     const senderId = msg.from.id;
-    const senderName = msg.from.first_name || msg.from.username || 'Unknown';
-    const caption = msg.caption || '';
+    const senderName = msg.from.first_name || msg.from.username || "Unknown";
+    const caption = msg.caption || "";
 
-    // Skip messages from excluded groups
     if (EXCLUDED_GROUPS.includes(msg.chat.id)) {
         return;
     }
@@ -52,89 +76,67 @@ bot.on('message', async (msg) => {
     try {
         let groupInviteLink = null;
 
-        // Only create a group invite link if the message is from a group or channel
-        if (msg.chat.type === 'group' || msg.chat.type === 'supergroup') {
+        if (msg.chat.type === "group" || msg.chat.type === "supergroup") {
             groupInviteLink = await getPermanentGroupInviteLink(msg.chat.id);
         }
 
-        // Caption for the first target group
         let captionForTarget1 = `<a href="tg://user?id=${senderId}">${senderId}</a>`;
         if (groupInviteLink) {
-            captionForTarget1 += `, <a href="${groupInviteLink}">${msg.chat.title || 'Group'}</a>`;
+            captionForTarget1 += `, <a href="${groupInviteLink}">${msg.chat.title || "Group"}</a>`;
         }
         captionForTarget1 += `\n\n${caption}`;
 
-        // Caption for the second target group
         let captionForTarget2 = `<code>${senderId}</code>\n\n${caption}`;
 
-        const optionsTarget1 = {
-            parse_mode: 'HTML',
-            caption: captionForTarget1,
-        };
-
-        const optionsTarget2 = {
-            parse_mode: 'HTML',
-            caption: captionForTarget2,
-        };
-
-        // Define media send function
-        const sendMedia = async (groupId, mediaType, fileId, options) => {
-            switch (mediaType) {
-                case 'photo':
-                    await bot.sendPhoto(groupId, fileId, options);
-                    break;
-                case 'video':
-                    await bot.sendVideo(groupId, fileId, options);
-                    break;
-                case 'document':
-                    await bot.sendDocument(groupId, fileId, options);
-                    break;
-                case 'audio':
-                    await bot.sendAudio(groupId, fileId, options);
-                    break;
-                case 'voice':
-                    await bot.sendVoice(groupId, fileId, options);
-                    break;
-                case 'sticker':
-                    await bot.sendSticker(groupId, fileId);
-                    break;
-                case 'animation':
-                    await bot.sendAnimation(groupId, fileId, options);
-                    break;
-            }
-        };
-
-        // Determine media type and forward to both groups
         if (msg.photo) {
             const fileId = msg.photo[msg.photo.length - 1].file_id;
-            await sendToGroups(GROUP_1_IDS, sendMedia, 'photo', fileId, optionsTarget1);
-            await sendToGroups(GROUP_2_IDS, sendMedia, 'photo', fileId, optionsTarget2);
+            await sendToGroups(GROUP_1_IDS, "sendPhoto", { photo: fileId, caption: captionForTarget1, parse_mode: "HTML" });
+            await sendToGroups(GROUP_2_IDS, "sendPhoto", { photo: fileId, caption: captionForTarget2, parse_mode: "HTML" });
         } else if (msg.video) {
             const fileId = msg.video.file_id;
-            await sendToGroups(GROUP_1_IDS, sendMedia, 'video', fileId, optionsTarget1);
-            await sendToGroups(GROUP_2_IDS, sendMedia, 'video', fileId, optionsTarget2);
+            await sendToGroups(GROUP_1_IDS, "sendVideo", { video: fileId, caption: captionForTarget1, parse_mode: "HTML" });
+            await sendToGroups(GROUP_2_IDS, "sendVideo", { video: fileId, caption: captionForTarget2, parse_mode: "HTML" });
         } else if (msg.document) {
             const fileId = msg.document.file_id;
-            await sendToGroups(GROUP_1_IDS, sendMedia, 'document', fileId, optionsTarget1);
-            await sendToGroups(GROUP_2_IDS, sendMedia, 'document', fileId, optionsTarget2);
+            await sendToGroups(GROUP_1_IDS, "sendDocument", { document: fileId, caption: captionForTarget1, parse_mode: "HTML" });
+            await sendToGroups(GROUP_2_IDS, "sendDocument", { document: fileId, caption: captionForTarget2, parse_mode: "HTML" });
         } else if (msg.audio) {
             const fileId = msg.audio.file_id;
-            await sendToGroups(GROUP_1_IDS, sendMedia, 'audio', fileId, optionsTarget1);
-            await sendToGroups(GROUP_2_IDS, sendMedia, 'audio', fileId, optionsTarget2);
+            await sendToGroups(GROUP_1_IDS, "sendAudio", { audio: fileId, caption: captionForTarget1, parse_mode: "HTML" });
+            await sendToGroups(GROUP_2_IDS, "sendAudio", { audio: fileId, caption: captionForTarget2, parse_mode: "HTML" });
         } else if (msg.voice) {
             const fileId = msg.voice.file_id;
-            await sendToGroups(GROUP_1_IDS, sendMedia, 'voice', fileId, optionsTarget1);
-            await sendToGroups(GROUP_2_IDS, sendMedia, 'voice', fileId, optionsTarget2);
+            await sendToGroups(GROUP_1_IDS, "sendVoice", { voice: fileId, caption: captionForTarget1, parse_mode: "HTML" });
+            await sendToGroups(GROUP_2_IDS, "sendVoice", { voice: fileId, caption: captionForTarget2, parse_mode: "HTML" });
         } else if (msg.sticker) {
             const fileId = msg.sticker.file_id;
-            await sendToGroups(GROUP_1_IDS, sendMedia, 'sticker', fileId);
-            await sendToGroups(GROUP_2_IDS, sendMedia, 'sticker', fileId);
-        } else if (msg.animation) {
-            const fileId = msg.animation.file_id;
-            await sendToGroups(GROUP_1_IDS, sendMedia, 'animation', fileId, optionsTarget1);
-            await sendToGroups(GROUP_2_IDS, sendMedia, 'animation', fileId, optionsTarget2);
+            await sendToGroups(GROUP_1_IDS, "sendSticker", { sticker: fileId });
+            await sendToGroups(GROUP_2_IDS, "sendSticker", { sticker: fileId });
         }
     } catch (error) {
-        console.error('Error processing message:', error.message);
+        console.error("Error processing message:", error.message);
     }
-});
+}
+
+// Polling mechanism for updates
+async function pollUpdates(offset = 0) {
+    try {
+        const response = await callTelegramApi("getUpdates", { offset });
+        const updates = response.result || [];
+
+        for (const update of updates) {
+            if (update.message) {
+                await processMessage(update.message);
+            }
+        }
+
+        const newOffset = updates.length > 0 ? updates[updates.length - 1].update_id + 1 : offset;
+        setImmediate(() => pollUpdates(newOffset));
+    } catch (error) {
+        console.error("Error polling updates:", error.message);
+        setTimeout(() => pollUpdates(offset), 1000);
+    }
+}
+
+// Start polling
+pollUpdates();
