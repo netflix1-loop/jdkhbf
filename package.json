@@ -1,6 +1,7 @@
 {
   "name": "telegram-bot",
   "version": "1.0.0",
+  "description": "A Telegram bot for forwarding messages to multiple groups.",
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js"
